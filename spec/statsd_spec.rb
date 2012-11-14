@@ -3,13 +3,13 @@ require 'helper'
 require 'tempfile'
 $host,$port = '127.0.0.1', 12345
 class Object
-  def with_em_client(after_fork = Proc.new{})
+  def with_em_client(port=$port,after_fork = Proc.new{})
     r,w = IO.pipe
     client_pid = fork {
-      $stderr.puts "test client starting on #{$port}"
+      $stderr.puts "test client starting on #{port}"
       trap('SIGINT') { puts "shutting down test client"; Kernel.exit!(0) }
       EM::run {
-        statsd = EM::Statsd.new($host, $port)
+        statsd = EM::Statsd.new($host, port)
         after_fork.call(statsd)
         r.close
         EM.next_tick{ w.write("done"); w.close}
@@ -38,9 +38,10 @@ describe EM::Statsd do
     it "should write to the log in debug" do
       EM::Statsd.logger.level = Logger::DEBUG
       socket = UDPSocket.new
-      socket.bind($host, $port)
+      port = $port -1
+      socket.bind($host, port)
 
-      with_em_client(lambda{|statsd| statsd.increment('foobar')}) do   
+      with_em_client(port,lambda{|statsd| statsd.increment('foobar')}) do   
         socket.recvfrom(16)
         @log.rewind
         @log.read.must_match "Statsd: foobar:1|c"
@@ -51,9 +52,10 @@ describe EM::Statsd do
     it "should not write to the log unless debug" do
       EM::Statsd.logger.level = Logger::INFO
       socket = UDPSocket.new
-      socket.bind($host, $port)
+      port = $port
+      socket.bind($host, port)
 
-      with_em_client(lambda{|statsd| statsd.increment('foobar')}) do   
+      with_em_client(port,lambda{|statsd| statsd.increment('foobar')}) do   
         socket.recvfrom(16)
         @log.rewind
         @log.read.must_be_empty
@@ -63,9 +65,10 @@ describe EM::Statsd do
     
     it "should actually send stuff over the socket" do     
       socket = UDPSocket.new
-      socket.bind($host, $port)
+      port = $port + 1
+      socket.bind($host, port)
 
-      with_em_client(lambda{|statsd| statsd.increment('foobar')}) do   
+      with_em_client(port,lambda{|statsd| statsd.increment('foobar')}) do   
         message = socket.recvfrom(16).first
         message.must_equal 'foobar:1|c'
       end
