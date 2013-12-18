@@ -1,5 +1,3 @@
-require "em-statsd/version"
-
 #FROM: http://pastebin.com/pKZwrCCZ
 #BY: A GUEST ON SEP 4TH, 2012 
 require "eventmachine"
@@ -32,3 +30,5 @@ module EM
 
   end
 end
+
+require "em-statsd/version"
